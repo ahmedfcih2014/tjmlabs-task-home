@@ -1,0 +1,9 @@
+python-version/__pycache__/
+python-version/*.py[cod]
+python-version/.pytest_cache/
+python-version/.venv/
+python-version/db.sqlite3
+python-version/db.sqlite3-*
+python-version/.env
+python-version/.dev-fernet-key
+python-version/uv.lock

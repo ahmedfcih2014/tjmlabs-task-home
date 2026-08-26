@@ -1,0 +1,454 @@
+{
+  "info": {
+    "_postman_id": "webhook-relay-core-v1",
+    "name": "Webhook Relay API (Core Slice)",
+    "description": "Postman collection for the webhook relay core API.\n\nSetup:\n1. Start the API: `python manage.py runserver`\n2. Start the worker: `python manage.py run_delivery_worker`\n3. Create an API key: `python manage.py create_api_key`\n4. Set the `api_key` collection variable to the raw key (starts with `whr_`).\n\nRecommended run order:\n1. Create Subscriber 1 (Orders)\n2. Create Subscriber 2 (Users)\n3. Send Event — order.created (routes to Subscriber 1 only)\n4. Send Event — user.created (routes to Subscriber 2 only)\n5. List Deliveries for each subscriber\n\nBase URL defaults to `http://127.0.0.1:8000`.\n\nAll endpoints require `Authorization: Bearer {{api_key}}`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_key}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "api_key",
+      "value": ""
+    },
+    {
+      "key": "subscription_id_1",
+      "value": ""
+    },
+    {
+      "key": "subscription_id_2",
+      "value": ""
+    },
+    {
+      "key": "signing_secret_1",
+      "value": ""
+    },
+    {
+      "key": "signing_secret_2",
+      "value": ""
+    },
+    {
+      "key": "event_id_order",
+      "value": ""
+    },
+    {
+      "key": "event_id_user",
+      "value": ""
+    },
+    {
+      "key": "idempotency_key_order",
+      "value": "postman-order-event-001"
+    },
+    {
+      "key": "idempotency_key_user",
+      "value": "postman-user-event-001"
+    }
+  ],
+  "item": [
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "Create Subscriber 1 (Orders)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Subscriber 1 created with order event types', function () {",
+                  "    pm.expect(body.id).to.be.a('string').and.not.empty;",
+                  "    pm.expect(body.signing_secret).to.match(/^whsec_/);",
+                  "    pm.expect(body.event_types).to.include('order.created');",
+                  "    pm.expect(body.destination_url).to.include('9001');",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('subscription_id_1', body.id);",
+                  "pm.collectionVariables.set('signing_secret_1', body.signing_secret);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination_url\": \"http://127.0.0.1:9001/orders-webhook\",\n  \"event_types\": [\"order.created\", \"order.updated\"],\n  \"destination_secret\": \"orders-receiver-secret\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions"]
+            },
+            "description": "Subscriber 1 listens for order events at port 9001.\n\nReturns `signing_secret` once on create."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Subscriber 2 (Users)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Subscriber 2 created with user event types', function () {",
+                  "    pm.expect(body.id).to.be.a('string').and.not.empty;",
+                  "    pm.expect(body.signing_secret).to.match(/^whsec_/);",
+                  "    pm.expect(body.event_types).to.include('user.created');",
+                  "    pm.expect(body.destination_url).to.include('9002');",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('subscription_id_2', body.id);",
+                  "pm.collectionVariables.set('signing_secret_2', body.signing_secret);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"destination_url\": \"http://127.0.0.1:9002/users-webhook\",\n  \"event_types\": [\"user.created\", \"user.updated\"],\n  \"destination_secret\": \"users-receiver-secret\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions"]
+            },
+            "description": "Subscriber 2 listens for user events at port 9002.\n\nReturns `signing_secret` once on create."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscriber 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Signing secret is not returned on read', function () {",
+                  "    pm.expect(body.signing_secret).to.be.oneOf([null, undefined]);",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('subscription_id_1'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id_1}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id_1}}"]
+            },
+            "description": "Fetch Subscriber 1 (Orders). Does not return secrets."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscriber 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Signing secret is not returned on read', function () {",
+                  "    pm.expect(body.signing_secret).to.be.oneOf([null, undefined]);",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('subscription_id_2'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id_2}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id_2}}"]
+            },
+            "description": "Fetch Subscriber 2 (Users). Does not return secrets."
+          },
+          "response": []
+        }
+      ],
+      "description": "Register two subscribers with different event interests and destinations."
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Send Event — order.created (Subscriber 1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Event routes only to Subscriber 1', function () {",
+                  "    pm.expect(body.event_type).to.eql('order.created');",
+                  "    pm.expect(body.matched_subscriptions).to.eql(1);",
+                  "    pm.expect(body.delivery_ids).to.have.lengthOf(1);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('event_id_order', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_type\": \"order.created\",\n  \"payload\": {\n    \"order_id\": \"ord_123\",\n    \"total\": 42.5,\n    \"currency\": \"USD\"\n  },\n  \"idempotency_key\": \"{{idempotency_key_order}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/events",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "events"]
+            },
+            "description": "Publishes an `order.created` event.\n\nMatches Subscriber 1 only (order event types). Subscriber 2 (user event types) is not matched."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Event — user.created (Subscriber 2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Event routes only to Subscriber 2', function () {",
+                  "    pm.expect(body.event_type).to.eql('user.created');",
+                  "    pm.expect(body.matched_subscriptions).to.eql(1);",
+                  "    pm.expect(body.delivery_ids).to.have.lengthOf(1);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('event_id_user', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_type\": \"user.created\",\n  \"payload\": {\n    \"user_id\": \"usr_456\",\n    \"email\": \"alice@example.com\"\n  },\n  \"idempotency_key\": \"{{idempotency_key_user}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/events",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "events"]
+            },
+            "description": "Publishes a `user.created` event.\n\nMatches Subscriber 2 only (user event types). Subscriber 1 (order event types) is not matched."
+          },
+          "response": []
+        },
+        {
+          "name": "Send Event — order.created (Idempotent Replay)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK on replay', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Same order event id returned', function () {",
+                  "    pm.expect(body.id).to.eql(pm.collectionVariables.get('event_id_order'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_type\": \"order.created\",\n  \"payload\": {\n    \"order_id\": \"ord_123\",\n    \"total\": 42.5,\n    \"currency\": \"USD\"\n  },\n  \"idempotency_key\": \"{{idempotency_key_order}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/events",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "events"]
+            },
+            "description": "Replays the order event with the same idempotency key. Returns `200` and does not create duplicate deliveries."
+          },
+          "response": []
+        }
+      ],
+      "description": "Publish events — each event type routes to a different subscriber."
+    },
+    {
+      "name": "Deliveries",
+      "item": [
+        {
+          "name": "List Deliveries — Subscriber 1 (Orders)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Subscriber 1 has order.created delivery only', function () {",
+                  "    pm.expect(body).to.be.an('array');",
+                  "    pm.expect(body.length).to.be.at.least(1);",
+                  "    body.forEach(function (delivery) {",
+                  "        pm.expect(delivery.event_type).to.eql('order.created');",
+                  "        pm.expect(delivery.event_id).to.eql(pm.collectionVariables.get('event_id_order'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id_1}}/deliveries",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id_1}}", "deliveries"]
+            },
+            "description": "Inspect deliveries for Subscriber 1.\n\nExpect one `order.created` delivery after sending the order event."
+          },
+          "response": []
+        },
+        {
+          "name": "List Deliveries — Subscriber 2 (Users)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Subscriber 2 has user.created delivery only', function () {",
+                  "    pm.expect(body).to.be.an('array');",
+                  "    pm.expect(body.length).to.be.at.least(1);",
+                  "    body.forEach(function (delivery) {",
+                  "        pm.expect(delivery.event_type).to.eql('user.created');",
+                  "        pm.expect(delivery.event_id).to.eql(pm.collectionVariables.get('event_id_user'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/subscriptions/{{subscription_id_2}}/deliveries",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "subscriptions", "{{subscription_id_2}}", "deliveries"]
+            },
+            "description": "Inspect deliveries for Subscriber 2.\n\nExpect one `user.created` delivery after sending the user event."
+          },
+          "response": []
+        }
+      ],
+      "description": "Inspect outbound delivery attempts per subscriber."
+    }
+  ]
+}
