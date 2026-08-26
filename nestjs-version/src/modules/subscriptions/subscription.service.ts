@@ -9,7 +9,6 @@ import { CreateSubscriptionDto } from 'src/modules/subscriptions/dto/create-subs
 import { SubscriptionEventType } from 'src/modules/subscriptions/entities/subscription-event-type.entity';
 import { Subscription } from 'src/modules/subscriptions/entities/subscription.entity';
 import { Repository } from 'typeorm';
-import * as crypto from 'crypto';
 import { EncryptionService } from 'src/modules/subscriptions/encryption.service';
 import { SubscriptionResponse } from 'src/modules/subscriptions/dto/subscription-response';
 
