@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SubscripionsModule } from './modules/subscriptions/subscripions.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { databaseConfig } from 'src/config/typeorm.config';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { databaseConfig } from 'src/config/typeorm.config';
     }),
     AuthModule,
     SubscripionsModule,
+    EventsModule,
   ],
   controllers: [],
   providers: [
