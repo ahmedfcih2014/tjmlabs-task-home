@@ -1,98 +1,284 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Webhook Relay — NestJS
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS implementation of the TJM Labs webhook relay take-home. Callers register subscriptions (destination URL + event types + secret), submit events, and inspect per-subscription delivery status. A background worker delivers signed HTTP POSTs with retries and exponential backoff.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Stack:** NestJS · TypeORM · SQLite (better-sqlite3) · JWT · pnpm
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Quick start
 
-## Project setup
+### Prerequisites
+
+- Node.js 18+ (for native `fetch` and `AbortSignal.timeout`)
+- pnpm
+
+### 1. Install dependencies
 
 ```bash
-$ pnpm install
+cd nestjs-version
+pnpm install
 ```
 
-## Compile and run the project
+### 2. Configure environment
+
+Create a `.env` file in `nestjs-version/`:
+
+```env
+PORT=3000
+
+JWT_SECRET=change-me-in-production
+JWT_EXPIRES_IN=1d
+
+# 32-byte key as 64 hex characters (AES-256-GCM for subscriber secrets)
+ENCRYPTION_KEY=<64-char-hex>
+```
+
+Generate an encryption key:
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-## Run tests
+### 3. Run the server
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm run start:dev
 ```
 
-## Deployment
+The API listens on `http://localhost:3000`. TypeORM auto-creates/syncs the SQLite schema on startup (`database.sqlite` in the project root).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+The delivery worker runs **inside the same process** via `@nestjs/schedule` (polls every 5 seconds). No separate worker terminal is required.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 4. Try the flow
+
+**Get a JWT** (hardcoded dev credentials: `admin` / `admin`):
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+curl -s -X POST http://localhost:3000/api/v1/auth/get-token \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}'
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Save the `access_token` from the response.
 
-## Resources
+**Create a subscription:**
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+curl -s -X POST http://localhost:3000/api/v1/subscrptions \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "destinationUrl": "http://127.0.0.1:9001/webhook",
+    "destinationSecret": "my-receiver-secret",
+    "eventTypes": ["order.created"]
+  }'
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**Send an event:**
 
-## Support
+```bash
+curl -s -X POST http://localhost:3000/api/v1/events \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "eventType": "order.created",
+    "payload": { "order_id": "ord_123", "total": 42.5 },
+    "idempotencyKey": "evt-001"
+  }'
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Inspect deliveries** (use the subscription `id` from the create response):
 
-## Stay in touch
+```bash
+curl -s "http://localhost:3000/api/v1/subscrptions/1/deliveries?page=1&limit=10" \
+  -H "Authorization: Bearer <token>"
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
-## License
+## API
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+All endpoints except auth require `Authorization: Bearer <access_token>`.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/auth/get-token` | Exchange username/password for JWT |
+| `GET` | `/api/v1/subscrptions` | List subscriptions (paginated) |
+| `POST` | `/api/v1/subscrptions` | Create subscription → `201` |
+| `PUT` | `/api/v1/subscrptions` | Upsert subscription by destination URL |
+| `GET` | `/api/v1/subscrptions/:id` | Get one subscription (no secret) |
+| `GET` | `/api/v1/subscrptions/:id/deliveries` | Delivery history for a subscription |
+| `POST` | `/api/v1/events` | Ingest event and enqueue deliveries |
+
+> Route path is intentionally spelled `subscrptions` (matches current controller).
+
+### Create subscription
+
+```json
+{
+  "destinationUrl": "https://example.com/webhook",
+  "destinationSecret": "receiver-credential",
+  "eventTypes": ["order.created", "order.updated"]
+}
+```
+
+The `destinationSecret` is encrypted at rest (AES-256-GCM) and never returned in API responses.
+
+### Send event
+
+```json
+{
+  "eventType": "order.created",
+  "payload": { "order_id": "ord_123" },
+  "idempotencyKey": "optional-client-key"
+}
+```
+
+- If `idempotencyKey` is omitted, a UUID is generated.
+- Replaying the same key with the same payload/type returns the existing event (no duplicate deliveries).
+- Replaying with a different payload or type → `409 Conflict`.
+
+### Outbound webhook (worker → destination)
+
+| Header | Value |
+| --- | --- |
+| `Content-Type` | `application/json` |
+| `X-Webhook-Signature` | `sha256=<hmac_sha256_hex>` |
+| `X-Event-Id` | event id |
+| `X-Event-Type` | event type |
+
+Body:
+
+```json
+{ "id": "<event-id>", "eventType": "order.created", "payload": { ... } }
+```
+
+HMAC is computed over the exact JSON body bytes using the decrypted `destinationSecret`.
+
+### Delivery policy
+
+| Setting | Value |
+| --- | --- |
+| Max attempts | 5 |
+| Backoff | `2^attemptCount` seconds, capped at 5 minutes |
+| HTTP timeout | 5 seconds |
+| Terminal states | `success` (2xx), `dead` (exhausted retries) |
+| Retryable | non-2xx, network errors, timeouts |
+
+Delivery statuses: `pending` → `in_progress` → `success` | `failed` (scheduled retry) | `dead`.
+
+---
+
+## Implementation overview
+
+```text
+POST /events
+  └─ EventsService: persist event + idempotency check
+       └─ DeliveryService.enqueueForEvent: match subscriptions by eventType
+            └─ insert DeliveryAttempt rows (pending)
+
+Cron worker (every 5s)
+  └─ DeliveryWorker: claim due attempts (batch of 5)
+       └─ DeliveryService.processAttempt
+            ├─ decrypt destinationSecret
+            ├─ WebhookClient: signed POST via fetch
+            └─ update status / schedule retry / mark dead
+```
+
+### Modules
+
+| Module | Responsibility |
+| --- | --- |
+| `auth` | JWT issuance (`admin`/`admin` stub), `AuthGuard` |
+| `subscriptions` | CRUD-ish subscription management, AES encryption of secrets |
+| `events` | Event ingest with SHA-256 payload hashing and idempotency |
+| `deliveries` | Outbox (`DeliveryAttempt`), webhook client, cron worker |
+| `shared/filters` | Uniform error response shape |
+
+### Data model
+
+- **Subscription** — destination URL, encrypted secret, related event types
+- **SubscriptionEventType** — event type names linked to a subscription
+- **Event** — event type, JSON payload (stored as text), idempotency key, payload hash
+- **DeliveryAttempt** — one row per (event, subscription) pair; tracks status, attempts, HTTP result, timing
+
+Fan-out uses a unique index on `(eventId, subscriptionId)` so duplicate enqueue is safe on retries.
+
+### Security
+
+- **Inbound:** JWT bearer on all protected routes; global validation pipe (whitelist + forbid unknown fields).
+- **Secrets at rest:** `destinationSecret` encrypted with AES-256-GCM (`ENCRYPTION_KEY` env var).
+- **Outbound authenticity:** HMAC-SHA256 signature header on every webhook POST.
+- **Secrets in transit:** decrypted only at delivery time, never exposed via API.
+
+---
+
+## Key decisions
+
+- **DB outbox + in-process cron worker** — no Redis/Bull; durable fan-out on SQLite with minimal dependencies. Trade-off: not ideal for multi-instance horizontal scaling without external locking.
+- **Async delivery** — `POST /events` returns after persist + enqueue; outbound HTTP never blocks the request path.
+- **HMAC over raw JSON body** — simple receiver verification; no timestamp header (simpler than the Python version's `{timestamp}.{body}` scheme).
+- **JWT stub auth** — hardcoded `admin`/`admin` for the take-home; production would use real user/API-key storage.
+- **TypeORM synchronize** — fast local dev; production would use migrations and Postgres.
+- **At-least-once delivery** — receivers should dedupe on event id.
+
+## What I'd harden before production
+
+- Postgres with `SELECT FOR UPDATE SKIP LOCKED` for multi-worker claiming
+- Real API key / user management instead of hardcoded credentials
+- Explicit DB migrations (disable `synchronize`)
+- SSRF controls on destination URLs (private IP deny, no redirects)
+- Rate limiting per caller and per destination
+- KMS-backed encryption key rotation
+- Timestamp + replay window on webhook signatures
+- Metrics, structured logging, health/readiness endpoints
+- HTTPS-only destinations, circuit breakers, auto-disable failing subscriptions
+
+## Deliberately left out
+
+- Separate worker process / message queue (Redis, Bull, Kafka)
+- DELETE subscription, PATCH by id (only PUT upsert by URL)
+- Delivery detail-by-id endpoint
+- Comprehensive e2e / integration test suite
+- Postman collection
+- Fixing the `subscrptions` route typo (kept for API stability)
+
+---
+
+## Scripts
+
+```bash
+pnpm run start:dev    # watch mode
+pnpm run build        # compile
+pnpm run start:prod   # run compiled dist/
+pnpm run lint         # ESLint
+pnpm run test         # unit tests (minimal coverage today)
+pnpm run test:e2e     # e2e scaffold
+```
+
+---
+
+## Project layout
+
+```text
+nestjs-version/
+  src/
+    config/              TypeORM / SQLite config
+    modules/
+      auth/              JWT token + guard
+      subscriptions/     subscription CRUD, encryption
+      events/              event ingest + idempotency
+      deliveries/        outbox, webhook client, cron worker
+    shared/filters/      global exception filter
+  test/                  e2e scaffold
+  database.sqlite        local SQLite file (created at runtime)
+```
+
+---
+
+## Related
+
+- Product brief: [`../requirements.md`](../requirements.md)
+- Python reference implementation: [`../python-version/README.md`](../python-version/README.md)
+- Repo overview: [`../README.md`](../README.md)

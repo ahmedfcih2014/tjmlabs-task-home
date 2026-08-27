@@ -7,9 +7,12 @@ import { SubscripionsModule } from './modules/subscriptions/subscripions.module'
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { databaseConfig } from 'src/config/typeorm.config';
 import { EventsModule } from './modules/events/events.module';
+import { DeliveriesModule } from './modules/deliveries/deliveries.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) =>
@@ -21,6 +24,7 @@ import { EventsModule } from './modules/events/events.module';
     }),
     AuthModule,
     SubscripionsModule,
+    DeliveriesModule,
     EventsModule,
   ],
   controllers: [],

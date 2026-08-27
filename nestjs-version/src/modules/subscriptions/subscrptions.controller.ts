@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from 'src/modules/auth/guards/auth.guard';
+import { DeliveryService } from 'src/modules/deliveries/delivery.service';
 import { CreateSubscriptionDto } from 'src/modules/subscriptions/dto/create-subscription.dto';
 import { SubscriptionService } from 'src/modules/subscriptions/subscription.service';
 
@@ -21,7 +22,10 @@ import { SubscriptionService } from 'src/modules/subscriptions/subscription.serv
 })
 @UseGuards(AuthGuard)
 export class SubscrptionsController {
-  constructor(private readonly subscriptionService: SubscriptionService) {}
+  constructor(
+    private readonly subscriptionService: SubscriptionService,
+    private readonly deliveryService: DeliveryService,
+  ) {}
 
   @Get()
   listSubscriptions(
@@ -49,6 +53,15 @@ export class SubscrptionsController {
     return await this.subscriptionService.updateOrCreateSubscription(
       createSubscriptionDto,
     );
+  }
+
+  @Get(':id/deliveries')
+  listDeliveries(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
+  ) {
+    return this.deliveryService.listBySubscription(id, page, limit);
   }
 
   @Get(':id')

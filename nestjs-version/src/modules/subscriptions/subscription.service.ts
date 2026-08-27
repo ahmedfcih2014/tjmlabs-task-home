@@ -100,6 +100,7 @@ export class SubscriptionService {
       }),
     );
     await this.subscriptionEventTypeRepository.save(eventTypes);
+    savedSubscription.eventTypes = eventTypes;
 
     return this.toSubscriptionResponse(savedSubscription);
   }
