@@ -13,6 +13,15 @@ NestJS implementation of the TJM Labs webhook relay take-home. Callers register 
 - Node.js 18+ (for native `fetch` and `AbortSignal.timeout`)
 - pnpm
 
+### 0. Run testing
+
+```bash
+cd nestjs-version
+pnpm test:e2e
+```
+
+This will run API tests, to make sure everything implemented as API layer is fine, you should get all green
+
 ### 1. Install dependencies
 
 ```bash

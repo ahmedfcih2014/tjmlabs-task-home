@@ -41,6 +41,7 @@ export class EventsService {
 
     const event = this.eventRepository.create({
       ...createEventDto,
+      idempotencyKey,
       payloadHash,
     });
     await this.eventRepository.save(event);
