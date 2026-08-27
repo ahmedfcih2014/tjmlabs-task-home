@@ -50,6 +50,19 @@ The API listens on `http://localhost:3000`. TypeORM auto-creates/syncs the SQLit
 
 The delivery worker runs **inside the same process** via `@nestjs/schedule` (polls every 5 seconds). No separate worker terminal is required.
 
+### 3b. Run the webhook simulator (optional)
+
+A tiny Express server at the repo root logs incoming webhook POSTs so you can verify delivery:
+
+```bash
+# Terminal 2 — from repo root
+cd simulator
+pnpm install
+pnpm start
+```
+
+Listens on `http://127.0.0.1:3030`. Use `http://127.0.0.1:3030/webhook` as `destinationUrl` when creating a subscription.
+
 ### 4. Try the flow
 
 **Get a JWT** (hardcoded dev credentials: `admin` / `admin`):
@@ -274,6 +287,8 @@ nestjs-version/
   test/                  e2e scaffold
   database.sqlite        local SQLite file (created at runtime)
 ```
+
+Simulator (repo root): [`../simulator/`](../simulator/)
 
 ---
 
