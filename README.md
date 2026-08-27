@@ -18,7 +18,7 @@ The Python implementation follows the original brief (Django + django-ninja + SQ
 
 **Documentation:** [`python-version/README.md`](python-version/README.md)
 
-Includes quick start, API reference, Postman collection, tests, architecture notes, and production hardening notes.
+Includes quick start, API reference, tests, and production hardening notes.
 
 ---
 
@@ -34,6 +34,22 @@ Includes setup, environment configuration, API walkthrough, architecture overvie
 
 ---
 
+## Shared artifacts
+
+**Path:** [`artifacts/`](artifacts/)
+
+One place for both stacks: shared architecture, Python core implementation plan, and Postman collections.
+
+| Artifact | Link |
+| --- | --- |
+| Index | [`artifacts/README.md`](artifacts/README.md) |
+| Architecture (shared) | [`artifacts/architecture.md`](artifacts/architecture.md) |
+| Python implementation plan | [`artifacts/python-core-implementation-plan.md`](artifacts/python-core-implementation-plan.md) |
+| Python Postman | [`artifacts/postman/webhook_relay_python.postman_collection.json`](artifacts/postman/webhook_relay_python.postman_collection.json) |
+| NestJS Postman | [`artifacts/postman/webhook_relay_nestjs.postman_collection.json`](artifacts/postman/webhook_relay_nestjs.postman_collection.json) |
+
+---
+
 ## Which one to run?
 
 | | Python | NestJS |
@@ -41,6 +57,6 @@ Includes setup, environment configuration, API walkthrough, architecture overvie
 | Stack | Django, django-ninja, uv | NestJS, TypeORM, pnpm |
 | Auth | API key (`Bearer whr_...`) | JWT (`Bearer <token>`) |
 | Worker | Separate management command | In-process cron (same process as API) |
-| Docs | Postman collection included | Manual / curl examples in README |
+| Postman | [`artifacts/postman/…python…`](artifacts/postman/webhook_relay_python.postman_collection.json) | [`artifacts/postman/…nestjs…`](artifacts/postman/webhook_relay_nestjs.postman_collection.json) |
 
 Pick the folder that matches the stack you want to evaluate, then follow that version's README.

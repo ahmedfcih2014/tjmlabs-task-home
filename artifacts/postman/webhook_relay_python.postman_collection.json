@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "webhook-relay-core-v1",
-    "name": "Webhook Relay API (Core Slice)",
-    "description": "Postman collection for the webhook relay core API.\n\nSetup:\n1. Start the API: `python manage.py runserver`\n2. Start the worker: `python manage.py run_delivery_worker`\n3. Create an API key: `python manage.py create_api_key`\n4. Set the `api_key` collection variable to the raw key (starts with `whr_`).\n\nRecommended run order:\n1. Create Subscriber 1 (Orders)\n2. Create Subscriber 2 (Users)\n3. Send Event — order.created (routes to Subscriber 1 only)\n4. Send Event — user.created (routes to Subscriber 2 only)\n5. List Deliveries for each subscriber\n\nBase URL defaults to `http://127.0.0.1:8000`.\n\nAll endpoints require `Authorization: Bearer {{api_key}}`.",
+    "name": "Webhook Relay API (Python)",
+    "description": "Postman collection for the Python (Django) webhook relay API.\n\nSetup (from `python-version/`):\n1. Start the API: `python manage.py runserver`\n2. Start the worker: `python manage.py run_delivery_worker`\n3. Create an API key: `python manage.py create_api_key`\n4. Set the `api_key` collection variable to the raw key (starts with `whr_`).\n\nRecommended run order:\n1. Create Subscriber 1 (Orders)\n2. Create Subscriber 2 (Users)\n3. Send Event — order.created (routes to Subscriber 1 only)\n4. Send Event — user.created (routes to Subscriber 2 only)\n5. List Deliveries for each subscriber\n\nBase URL defaults to `http://127.0.0.1:8000`.\n\nAll endpoints require `Authorization: Bearer {{api_key}}`.\n\nCanonical artifacts live at repo-root `artifacts/`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {

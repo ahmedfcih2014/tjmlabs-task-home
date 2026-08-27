@@ -72,7 +72,13 @@ pnpm start
 
 Listens on `http://127.0.0.1:3030`. Use `http://127.0.0.1:3030/webhook` as `destinationUrl` when creating a subscription.
 
-### 4. Try the flow
+### 4. Try it with Postman
+
+1. Import [`../artifacts/postman/webhook_relay_nestjs.postman_collection.json`](../artifacts/postman/webhook_relay_nestjs.postman_collection.json)
+2. Run **Auth → Get Token** (saves `access_token`; credentials `admin` / `admin`)
+3. Run in order: Create Subscriber 1 → Create Subscriber 2 → Send events → List deliveries
+
+### 5. Try the flow (curl)
 
 **Get a JWT** (hardcoded dev credentials: `admin` / `admin`):
 
@@ -262,8 +268,7 @@ Fan-out uses a unique index on `(eventId, subscriptionId)` so duplicate enqueue 
 - Separate worker process / message queue (Redis, Bull, Kafka)
 - DELETE subscription, PATCH by id (only PUT upsert by URL)
 - Delivery detail-by-id endpoint
-- Comprehensive e2e / integration test suite
-- Postman collection
+- Comprehensive unit test suite (e2e covers the core paths)
 - Fixing the `subscrptions` route typo (kept for API stability)
 
 ---
@@ -304,5 +309,7 @@ Simulator (repo root): [`../simulator/`](../simulator/)
 ## Related
 
 - Product brief: [`../requirements.md`](../requirements.md)
+- Shared architecture: [`../artifacts/architecture.md`](../artifacts/architecture.md)
+- NestJS Postman: [`../artifacts/postman/webhook_relay_nestjs.postman_collection.json`](../artifacts/postman/webhook_relay_nestjs.postman_collection.json)
 - Python reference implementation: [`../python-version/README.md`](../python-version/README.md)
 - Repo overview: [`../README.md`](../README.md)
